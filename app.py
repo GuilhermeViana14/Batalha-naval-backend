@@ -10,7 +10,7 @@ app = Flask(__name__)
 CORS(app, supports_credentials=True)
 
 # Inicializando o SocketIO
-socketio = SocketIO(app, cors_allowed_origins='*', async_mode='gevent')
+socketio = SocketIO(app, cors_allowed_origins='*', async_mode='gevent', ping_timeout =60)
 
 # Instância do jogo
 game = Game()
@@ -97,4 +97,4 @@ if __name__ == '__main__':
     port = int(os.environ.get('PORT', 5000))
     
     # Roda o servidor Flask com o SocketIO
-    socketio.run(app, host='0.0.0.0', port=port)
+    socketio.run(app, host='0.0.0.0', port=port, ping_timeout=60)
