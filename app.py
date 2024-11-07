@@ -2,11 +2,17 @@ from flask import Flask, jsonify
 from flask_socketio import SocketIO, emit
 from flask_cors import CORS
 from game_model import Game
+import os
 
 app = Flask(__name__)
+
+# CORS configurado para aceitar solicitações de diferentes origens
 CORS(app, supports_credentials=True)
+
+# Inicializando o SocketIO
 socketio = SocketIO(app, cors_allowed_origins='*', async_mode='gevent')
 
+# Instância do jogo
 game = Game()
 
 # Evento de conexão
@@ -87,4 +93,8 @@ def handle_leave_game(data):
 
 # Rodando o servidor
 if __name__ == '__main__':
-    socketio.run(app)
+    # Pega a porta da variável de ambiente do Railway ou usa 5000 como fallback
+    port = int(os.environ.get('PORT', 5000))
+    
+    # Roda o servidor Flask com o SocketIO
+    socketio.run(app, host='0.0.0.0', port=port)
