@@ -6,11 +6,10 @@ import os
 
 app = Flask(__name__)
 
-# CORS configurado para aceitar solicitações de diferentes origens
-CORS(app, supports_credentials=True)
+CORS(app, origins=["http://localhost:3000"], supports_credentials=True)
 
 # Inicializando o SocketIO
-socketio = SocketIO(app, cors_allowed_origins='*', async_mode='gevent', ping_timeout =60)
+socketio = SocketIO(app, cors_allowed_origins='*', cors_allowed_origins="http://localhost:3000", async_mode='gevent', ping_timeout =60)
 
 # Instância do jogo
 game = Game()
