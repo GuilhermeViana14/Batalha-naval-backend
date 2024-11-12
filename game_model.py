@@ -22,13 +22,14 @@ class Game:
     def add_player(self, player_id=None):
         if len(self.players) >= 2:
             print("Máximo de jogadores atingido")
-            return "Máximo de jogadores atingido"
+            return "Máximo de jogadores atingido", None
         
         # Atribui o próximo ID sequencial aos jogadores
         new_player_id = len(self.players)
         self.players.append(new_player_id)
         print(f"Jogador {new_player_id + 1} adicionado com ID: {new_player_id}")
-        return f"Jogador {new_player_id + 1} adicionado"
+        return f"Jogador {new_player_id + 1} adicionado", new_player_id
+
 
     def start_game(self):
         if len(self.players) == 2:
