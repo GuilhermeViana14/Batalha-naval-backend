@@ -26,6 +26,7 @@ def handle_disconnect():
     print("Cliente desconectado")
     emit('connection_status', {'message': 'Desconectado'})
 
+
 # Evento para adicionar jogador
 @socketio.on('add_player')
 def handle_add_player(data=None):
@@ -75,6 +76,9 @@ def handle_make_move(data):
 
     except Exception as e:
         emit('error', {'message': f"Erro ao fazer o movimento: {str(e)}"})
+
+
+
 
 # Evento para remover jogador
 @socketio.on('leave_game')
