@@ -31,8 +31,6 @@ class Game:
     def start_game(self):
         if len(self.players) == 2:
             self.game_started = True
-            self.place_ships(0)
-            self.place_ships(1)
             self.print_boards()
             return "Jogo iniciado"
         else:
@@ -41,33 +39,38 @@ class Game:
     def is_game_started(self):
         return self.game_started
 
+
     def place_ships(self, player_index):
         for ship_name, ship_info in self.ships.items():
             for _ in range(ship_info['count']):
                 self.place_ship(player_index, ship_info['size'], ship_name)
 
-    def place_ship(self, player_index, size, ship_name):
+    def place_ship(self, player_index, size, ship_name, x, y, orientation):
+        # Conta quantos navios desse tipo (ship_name) o jogador já posicionou
+        current_ships_count = sum(1 for ship in self.boards[player_index]['ships'] if ship[3] == ship_name)
+        max_ships_count = self.ships[ship_name]['count']
+        
+        if current_ships_count >= max_ships_count:
+            return f"O jogador {player_index + 1} já posicionou o número máximo de navios do tipo {ship_name}."
+        
         placed = False
-        while not placed:
-            x = int(input(f"Jogador {player_index + 1}, insira a coordenada X para o {ship_name} ({size} de comprimento): "))
-            y = int(input(f"Jogador {player_index + 1}, insira a coordenada Y para o {ship_name} ({size} de comprimento): "))
-            orientation = input(f"Jogador {player_index + 1}, insira a orientação para o {ship_name} (horizontal/vertical): ").strip().lower()
+        if orientation not in ['horizontal', 'vertical']:
+            return "Orientação inválida!"
 
-            if orientation not in ['horizontal', 'vertical']:
-                print("Orientação inválida! Escolha entre 'horizontal' ou 'vertical'.")
-                continue
+        board = self.boards[player_index]['board']
+        if self.can_place_ship(x, y, size, orientation, board):
+            for i in range(size):
+                if orientation == 'horizontal':
+                    board[x][y + i] = 1
+                else:
+                    board[x + i][y] = 1
+            self.boards[player_index]['ships'].append((x, y, size, ship_name, orientation))
+            placed = True
+            return "Navio colocado com sucesso."
+        else:
+            return f"Não é possível colocar o {ship_name} nas coordenadas ({x}, {y}) com a orientação {orientation}. Tente novamente."
 
-            board = self.boards[player_index]['board']
-            if self.can_place_ship(x, y, size, orientation, board):
-                for i in range(size):
-                    if orientation == 'horizontal':
-                        board[x][y + i] = 1
-                    else:
-                        board[x + i][y] = 1
-                self.boards[player_index]['ships'].append((x, y, size, orientation))
-                placed = True
-            else:
-                print(f"Não é possível colocar o {ship_name} nas coordenadas ({x}, {y}) com a orientação {orientation}. Tente novamente.")
+
 
     def can_place_ship(self, x, y, size, orientation, board):
         # Verifica se o navio cabe nas coordenadas fornecidas e se o espaço está livre
@@ -80,18 +83,26 @@ class Game:
                     return False
         return True
 
+    def are_all_ships_placed(self, player_index):
+        """Verifica se o jogador colocou todos os seus navios."""
+        player_ships = self.boards[player_index]['ships']
+        total_ships = sum(ship_info['count'] for ship_info in self.ships.values())
+        return len(player_ships) == total_ships
+
     def make_move(self, player_id, x, y):
+        """Realiza uma jogada do jogador no tabuleiro do oponente."""
+        
         # Verifica se o jogo começou
         if not self.is_game_started():
             return {'hit': False, 'message': 'O jogo não começou ainda. Aguarde os jogadores para iniciar o jogo.', 'boards': self.boards}
 
         # Verifica se já há um vencedor
         if self.winner is not None:
-            self.restart_game()  # Reinicia o jogo
+            self.reset_game()  # Reinicia o jogo
             return {'hit': False, 'message': f"O jogo acabou! O vencedor foi o jogador {self.winner + 1} ({self.players[self.winner] if len(self.players) > self.winner else 'Unknown'}). O jogo foi reiniciado.", 'boards': self.boards}
 
         if len(self.players) < 2:
-            self.restart_game()  # Reinicia o jogo
+            self.reset_game()  # Reinicia o jogo
             return {'hit': False, 'message': 'Não há jogadores suficientes para fazer uma jogada. O jogo foi reiniciado.', 'boards': self.boards}
 
         current_player_id = self.get_current_player()
@@ -103,6 +114,22 @@ class Game:
             return {
                 'hit': False,
                 'message': f'É a vez do jogador {expected_player_index + 1} ({expected_player_id}).' if expected_player_id is not None else 'Jogadores insuficientes para continuar.',
+                'boards': self.boards
+            }
+
+        # Verifica se ambos os jogadores posicionaram todos os seus navios antes de permitir o ataque
+        if not self.are_all_ships_placed(0) or not self.are_all_ships_placed(1):
+            return {
+                'hit': False,
+                'message': 'Ambos os jogadores precisam posicionar todos os seus navios antes de começar o jogo.',
+                'boards': self.boards
+            }
+
+        # Verifica se o jogador atual colocou todos os seus navios
+        if not self.are_all_ships_placed(self.current_player):
+            return {
+                'hit': False,
+                'message': f'O jogador {self.current_player + 1} ainda não posicionou todos os seus navios. Não é possível atacar!',
                 'boards': self.boards
             }
 
@@ -174,9 +201,9 @@ class Game:
         self.boards = [{'board': [[0] * 5 for _ in range(5)], 'ships': []},
                        {'board': [[0] * 5 for _ in range(5)], 'ships': []}]  # Limpa os tabuleiros
         self.ships = {
-            'submarino': {'size': 1, 'count': 3},
+            'submarino': {'size': 1, 'count': 1},
             'barco': {'size': 2, 'count': 1},
-            'navio': {'size': 3, 'count': 2},
+            'navio': {'size': 3, 'count': 1},
             'porta_aviao': {'size': 3, 'count': 1}
         }
         self.game_started = False  # O jogo não foi iniciado
