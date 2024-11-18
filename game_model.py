@@ -9,18 +9,19 @@ class Game:
         self.boards = [{'board': [[0] * 5 for _ in range(5)], 'ships': []},
                        {'board': [[0] * 5 for _ in range(5)], 'ships': []}]
         self.ships = {
-    'submarino': {'size': 1, 'count': 1, 'shape': [[1]]},
-    'barco': {'size': 2, 'count': 1, 'shape': [[1, 1]]},
-    'navio': {'size': 3, 'count': 1, 'shape': [[1, 1, 1]]},
-    'porta_aviao': {
-        'size': 3,
-        'count': 1,
-        'shape': [
-            [0, 1, 0],
-            [1, 1, 1]
-        ]
-    }
-}
+            'submarino': {'size': 1, 'count': 2, 'shape': [[1]]},
+            'barco': {'size': 2, 'count': 1, 'shape': [[1, 1]]},
+            'navio': {'size': 3, 'count': 1, 'shape': [[1, 1, 1]]},
+            'porta_aviao': {
+                'size': 3,
+                'count': 1,
+                'shape': [
+                    [0, 1, 0],
+                    [0, 1, 0],
+                    [1, 1, 1]
+                ]
+            }
+        }
         self.game_started = False
         self.winner = None
 
@@ -52,14 +53,24 @@ class Game:
             for _ in range(ship_info['count']):
                 self.place_ship(player_index, ship_info['size'], ship_name)
 
-    def place_ship(self, player_index, size, ship_name, x, y, orientation=None):
+    def place_ship(self, player_index, size, ship_name, x, y, orientation='horizontal'):
         if ship_name not in self.ships:
             return "Tipo de navio inválido."
 
+        # Verifica se o limite de navios desse tipo já foi atingido
         ship_info = self.ships[ship_name]
+        placed_ships = [ship for ship in self.boards[player_index]['ships'] if ship[3] == ship_name]
+        if len(placed_ships) >= ship_info['count']:
+            return f"O limite de {ship_info['count']} '{ship_name}' já foi atingido."
+
         shape = ship_info['shape']
 
+        # Rotaciona o shape se a orientação for vertical
+        if orientation == 'vertical':
+            shape = list(zip(*shape[::-1]))
+
         board = self.boards[player_index]['board']
+
         if self.can_place_ship(x, y, shape, board):
             rows = len(shape)
             cols = len(shape[0])
@@ -71,6 +82,7 @@ class Game:
             return f"{ship_name} colocado com sucesso!"
         else:
             return f"Não é possível colocar o {ship_name} nas coordenadas ({x}, {y})."
+
 
 
     def can_place_ship(self, x, y, shape, board):
@@ -207,10 +219,18 @@ class Game:
         self.boards = [{'board': [[0] * 5 for _ in range(5)], 'ships': []},
                        {'board': [[0] * 5 for _ in range(5)], 'ships': []}]  # Limpa os tabuleiros
         self.ships = {
-            'submarino': {'size': 1, 'count': 1},
-            'barco': {'size': 2, 'count': 1},
-            'navio': {'size': 3, 'count': 1},
-            'porta_aviao': {'size': 3, 'count': 1}
+            'submarino': {'size': 1, 'count': 2, 'shape': [[1]]},
+            'barco': {'size': 2, 'count': 1, 'shape': [[1, 1]]},
+            'navio': {'size': 3, 'count': 1, 'shape': [[1, 1, 1]]},
+            'porta_aviao': {
+                'size': 3,
+                'count': 1,
+                'shape': [
+                    [0, 1, 0],
+                    [0, 1, 0],
+                    [1, 1, 1]
+                ]
+            }
         }
         self.game_started = False  # O jogo não foi iniciado
         self.winner = None  # Não há vencedor
