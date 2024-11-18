@@ -51,6 +51,8 @@ def handle_start_game():
     except Exception as e:
         emit('error', {'message': f"Erro ao iniciar o jogo: {str(e)}"})
 
+
+
 # Evento para fazer movimento no jogo
 @socketio.on('make_move')
 def handle_make_move(data):
@@ -76,6 +78,7 @@ def handle_make_move(data):
 
     except Exception as e:
         emit('error', {'message': f"Erro ao fazer o movimento: {str(e)}"})
+
 
 
 
