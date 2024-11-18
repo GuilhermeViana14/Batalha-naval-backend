@@ -9,11 +9,18 @@ class Game:
         self.boards = [{'board': [[0] * 5 for _ in range(5)], 'ships': []},
                        {'board': [[0] * 5 for _ in range(5)], 'ships': []}]
         self.ships = {
-            'submarino': {'size': 1, 'count': 1},
-            'barco': {'size': 2, 'count': 1},
-            'navio': {'size': 3, 'count': 1},
-            'porta_aviao': {'size': 3, 'count': 1}
-        }
+    'submarino': {'size': 1, 'count': 1, 'shape': [[1]]},
+    'barco': {'size': 2, 'count': 1, 'shape': [[1, 1]]},
+    'navio': {'size': 3, 'count': 1, 'shape': [[1, 1, 1]]},
+    'porta_aviao': {
+        'size': 3,
+        'count': 1,
+        'shape': [
+            [0, 1, 0],
+            [1, 1, 1]
+        ]
+    }
+}
         self.game_started = False
         self.winner = None
 
@@ -45,43 +52,42 @@ class Game:
             for _ in range(ship_info['count']):
                 self.place_ship(player_index, ship_info['size'], ship_name)
 
-    def place_ship(self, player_index, size, ship_name, x, y, orientation):
-        # Conta quantos navios desse tipo (ship_name) o jogador já posicionou
-        current_ships_count = sum(1 for ship in self.boards[player_index]['ships'] if ship[3] == ship_name)
-        max_ships_count = self.ships[ship_name]['count']
-        
-        if current_ships_count >= max_ships_count:
-            return f"O jogador {player_index + 1} já posicionou o número máximo de navios do tipo {ship_name}."
-        
-        placed = False
-        if orientation not in ['horizontal', 'vertical']:
-            return "Orientação inválida!"
+    def place_ship(self, player_index, size, ship_name, x, y, orientation=None):
+        if ship_name not in self.ships:
+            return "Tipo de navio inválido."
+
+        ship_info = self.ships[ship_name]
+        shape = ship_info['shape']
 
         board = self.boards[player_index]['board']
-        if self.can_place_ship(x, y, size, orientation, board):
-            for i in range(size):
-                if orientation == 'horizontal':
-                    board[x][y + i] = 1
-                else:
-                    board[x + i][y] = 1
-            self.boards[player_index]['ships'].append((x, y, size, ship_name, orientation))
-            placed = True
-            return "Navio colocado com sucesso."
+        if self.can_place_ship(x, y, shape, board):
+            rows = len(shape)
+            cols = len(shape[0])
+            for i in range(rows):
+                for j in range(cols):
+                    if shape[i][j] == 1:  # Parte do navio
+                        board[x + i][y + j] = 1
+            self.boards[player_index]['ships'].append((x, y, size, ship_name, shape))
+            return f"{ship_name} colocado com sucesso!"
         else:
-            return f"Não é possível colocar o {ship_name} nas coordenadas ({x}, {y}) com a orientação {orientation}. Tente novamente."
+            return f"Não é possível colocar o {ship_name} nas coordenadas ({x}, {y})."
 
 
+    def can_place_ship(self, x, y, shape, board):
+        rows = len(shape)
+        cols = len(shape[0])
 
-    def can_place_ship(self, x, y, size, orientation, board):
-        # Verifica se o navio cabe nas coordenadas fornecidas e se o espaço está livre
-        for i in range(size):
-            if orientation == 'horizontal':
-                if y + i >= len(board[0]) or board[x][y + i] != 0:
-                    return False
-            else:
-                if x + i >= len(board) or board[x + i][y] != 0:
-                    return False
+        for i in range(rows):
+            for j in range(cols):
+                if shape[i][j] == 1:  # Parte do navio
+                    if (
+                        x + i >= len(board) or  # Fora do limite vertical
+                        y + j >= len(board[0]) or  # Fora do limite horizontal
+                        board[x + i][y + j] != 0  # Espaço já ocupado
+                    ):
+                        return False
         return True
+
 
     def are_all_ships_placed(self, player_index):
         """Verifica se o jogador colocou todos os seus navios."""
