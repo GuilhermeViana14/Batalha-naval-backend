@@ -1,9 +1,10 @@
+
 import random
 import uuid
 
 class Game:
     def __init__(self):
-        self.players = {}  # Muda para um dicionário para armazenar IDs únicos dos jogadores
+        self.players = []
         self.current_player = 0
         self.boards = [{'board': [[0] * 5 for _ in range(5)], 'ships': []},
                        {'board': [[0] * 5 for _ in range(5)], 'ships': []}]
@@ -24,18 +25,17 @@ class Game:
         self.game_started = False
         self.winner = None
 
-    def add_player(self):
+    def add_player(self, player_id=None):
         if len(self.players) >= 2:
-            if self.game_started:
-                return "A partida já começou. Aguarde a próxima partida."
-            else:
-                return "Máximo de jogadores atingido. O jogo já está cheio."
+            print("Máximo de jogadores atingido")
+            return "Máximo de jogadores atingido", None
+        
+        # Atribui o próximo ID sequencial aos jogadores
+        new_player_id = len(self.players)
+        self.players.append(new_player_id)
+        print(f"Jogador {new_player_id + 1} adicionado com ID: {new_player_id}")
+        return f"Jogador {new_player_id + 1} adicionado", new_player_id
 
-        # Cria um ID único para o jogador
-        player_id = str(uuid.uuid4())
-        self.players[player_id] = None  # Adiciona o jogador ao dicionário de jogadores
-        print(f"Jogador {player_id} adicionado.")
-        return f"Jogador {player_id} adicionado", player_id
 
     def start_game(self):
         if len(self.players) == 2:
@@ -48,8 +48,8 @@ class Game:
     def is_game_started(self):
         return self.game_started
 
-    def place_ships(self, player_id):
-        player_index = list(self.players.keys()).index(player_id)
+
+    def place_ships(self, player_index):
         for ship_name, ship_info in self.ships.items():
             for _ in range(ship_info['count']):
                 self.place_ship(player_index, ship_info['size'], ship_name)
@@ -84,6 +84,8 @@ class Game:
         else:
             return f"Não é possível colocar o {ship_name} nas coordenadas ({x}, {y})."
 
+
+
     def can_place_ship(self, x, y, shape, board):
         rows = len(shape)
         cols = len(shape[0])
@@ -98,6 +100,7 @@ class Game:
                     ):
                         return False
         return True
+
 
     def are_all_ships_placed(self, player_index):
         """Verifica se o jogador colocou todos os seus navios."""
@@ -115,15 +118,21 @@ class Game:
         # Verifica se já há um vencedor
         if self.winner is not None:
             self.reset_game()  # Reinicia o jogo
-            return {'hit': False, 'message': f"O jogo acabou! O vencedor foi o jogador {self.winner + 1}. O jogo foi reiniciado.", 'boards': self.boards}
+            return {'hit': False, 'message': f"O jogo acabou! O vencedor foi o jogador {self.winner + 1} ({self.players[self.winner] if len(self.players) > self.winner else 'Unknown'}). O jogo foi reiniciado.", 'boards': self.boards}
+
+        if len(self.players) < 2:
+            self.reset_game()  # Reinicia o jogo
+            return {'hit': False, 'message': 'Não há jogadores suficientes para fazer uma jogada. O jogo foi reiniciado.', 'boards': self.boards}
 
         current_player_id = self.get_current_player()
 
         # Verifica se é a vez do jogador atual
         if player_id != current_player_id:
+            expected_player_index = 0 if self.current_player == 0 else 1
+            expected_player_id = self.players[expected_player_index] if len(self.players) > expected_player_index else None
             return {
                 'hit': False,
-                'message': f'É a vez do jogador {self.players[current_player_id]}.',
+                'message': f'É a vez do jogador {expected_player_index + 1} ({expected_player_id}).' if expected_player_id is not None else 'Jogadores insuficientes para continuar.',
                 'boards': self.boards
             }
 
@@ -135,8 +144,19 @@ class Game:
                 'boards': self.boards
             }
 
+        # Verifica se o jogador atual colocou todos os seus navios
+        if not self.are_all_ships_placed(self.current_player):
+            return {
+                'hit': False,
+                'message': f'O jogador {self.current_player + 1} ainda não posicionou todos os seus navios. Não é possível atacar!',
+                'boards': self.boards
+            }
+
         opponent_index = 1 if self.current_player == 0 else 0
         opponent_board = self.boards[opponent_index]['board']
+
+        print(f"Jogada do jogador {player_id} nas coordenadas ({x}, {y})")
+        print(f"Tabuleiro do oponente antes da jogada: {opponent_board}")
 
         # Verifica se a jogada acerta ou erra
         if opponent_board[x][y] == 1:
@@ -147,15 +167,15 @@ class Game:
                 self.print_boards()
                 return {
                     'hit': True,
-                    'message': f'Jogador {self.current_player + 1} acertou e venceu o jogo!',
-                    'winner': self.players[self.current_player],
+                    'message': f'Jogador {self.current_player + 1} ({player_id}) acertou e venceu o jogo!',
+                    'winner': self.players[self.current_player] if len(self.players) > self.current_player else 'Unknown',
                     'x': x,
                     'y': y,
                     'boards': self.boards
                 }
             result = {
                 'hit': True,
-                'message': f'Jogador {self.current_player + 1} acertou!',
+                'message': f'Jogador {self.current_player + 1} ({player_id}) acertou!',
                 'x': x,
                 'y': y,
                 'boards': self.boards
@@ -164,7 +184,7 @@ class Game:
             opponent_board[x][y] = 3  # Marca como erro
             result = {
                 'hit': False,
-                'message': f'Jogador {self.current_player + 1} errou!',
+                'message': f'Jogador {self.current_player + 1} ({player_id}) errou!',
                 'x': x,
                 'y': y,
                 'boards': self.boards
@@ -184,11 +204,12 @@ class Game:
         self.current_player = 1 if self.current_player == 0 else 0
 
     def get_current_player(self):
-        return self.players[list(self.players.keys())[self.current_player]]
+        return self.players[self.current_player]
 
     def print_boards(self):
+        # Exibe o estado dos tabuleiros de cada jogador
         for i, player_board in enumerate(self.boards):
-            player_id = self.players[list(self.players.keys())[i]]
+            player_id = self.players[i]
             print(f"\nTabuleiro do Jogador {i + 1} (ID: {player_id}):")
             for row in player_board['board']:
                 print(" ".join(str(cell) for cell in row))
@@ -218,7 +239,7 @@ class Game:
 
     def remove_player(self, player_id):
         if player_id in self.players:
-            del self.players[player_id]
+            self.players.remove(player_id)
             print(f"Jogador {player_id} removido da partida.")
             
             # Reinicia o jogo se algum jogador sair
@@ -226,3 +247,5 @@ class Game:
             return f"Jogador {player_id} saiu da partida e o jogo foi reiniciado."
         else:
             return f"Jogador {player_id} não está na partida."
+        
+        
