@@ -1,9 +1,9 @@
-from typing import Self
 from flask import Flask, jsonify, request
-from flask_socketio import SocketIO, emit
+from flask_socketio import SocketIO, emit, join_room, leave_room
 from flask_cors import CORS
 from game_model import Game
 import os
+import uuid
 
 app = Flask(__name__)
 
@@ -12,8 +12,8 @@ CORS(app, origins="*", supports_credentials=True)
 # Inicializando o SocketIO
 socketio = SocketIO(app, cors_allowed_origins='*',  async_mode='gevent')
 
-# Instância do jogo
-game = Game()
+# Dicionário para armazenar as partidas ativas
+games = {}  # Chave = sala_id, Valor = instância do jogo
 
 # Evento de conexão
 @socketio.on('connect')
@@ -27,29 +27,62 @@ def handle_disconnect():
     print("Cliente desconectado")
     emit('connection_status', {'message': 'Desconectado'})
 
-
-
 @socketio.on('add_player')
 def handle_add_player(data=None):
     try:
-        message = game.add_player()
-        emit('player_added', {'message': message},  room=request.sid)
+        room_id = None
+        # Busca por uma sala disponível
+        for room in games:
+            if len(games[room].players) < 2:
+                room_id = room
+                print(f"Jogador encontrado em sala existente: {room_id}")
+                break
+        
+        if room_id is None:
+            # Se não encontrou uma sala, cria uma nova
+            room_id = str(uuid.uuid4())  # Gera um ID único para a sala
+            games[room_id] = Game()  # Cria uma nova instância do jogo para a sala
+            print(f"Criando nova sala com ID: {room_id}")
+        
+        # Registra o jogador na sala
+        player_sid = request.sid
+        message, player_id = games[room_id].add_player(player_sid)  # Agora o retorno é desestruturado
+        if player_id is None:
+            emit('error', {'message': message})
+            return
+        
+        print(f"Jogador {player_id + 1} se juntou à sala {room_id}")
 
-        # Se o jogo tiver dois jogadores, inicie o jogo
-        if len(game.players) == 2:
-            game.start_game()
-            emit('game_started', {'message': 'O jogo começou!'}, broadcast=True)
+        # Adiciona o jogador à sala do SocketIO
+        join_room(room_id)
 
+        # Emite a resposta de sucesso
+        emit('player_added', {'message': message, 'player_id': player_id, 'room_id': room_id}, room=player_sid)
+
+        # Verifica se a sala tem 2 jogadores
+        if len(games[room_id].players) == 2:
+            print(f"Sala {room_id} agora tem 2 jogadores. Iniciando o jogo...")
+            # Inicia o jogo
+            game_start_message = games[room_id].start_game()  # Chama o método para iniciar o jogo
+            print(game_start_message)
+
+            # Emite para todos na sala que o jogo começou
+            emit('game_started', {'message': 'O jogo começou!'}, room=room_id)
+    
     except Exception as e:
+        print(f"Erro ao adicionar jogador: {str(e)}")
         emit('error', {'message': f"Erro ao adicionar jogador: {str(e)}"})
 
 
-    except Exception as e:
-        emit('error', {'message': f"Erro ao adicionar jogador: {str(e)}"})
-
-# Evento para iniciar o jogo
 @socketio.on('start_game')
-def handle_start_game():
+def handle_start_game(data):
+    room_id = data['room_id']  # Recebe o room_id enviado pelo front-end
+    game = games.get(room_id)  # Recupera a instância do jogo associada ao room_id
+
+    if not game:
+        emit('error', {'message': 'Sala não encontrada!'})
+        return
+
     try:
         message = game.start_game()
         emit('game_started', {'message': message}, broadcast=True)
@@ -59,6 +92,13 @@ def handle_start_game():
 
 @socketio.on('place_ship')
 def handle_place_ship(data):
+    room_id = data['room_id']  # Certifique-se de enviar room_id no front-end
+    game = games.get(room_id)  # Recupera a instância do jogo associada ao room_id
+
+    if not game:
+        emit('place_ship_response', {'message': 'Sala não encontrada!', 'success': False})
+        return
+
     player_id = data['player_id']
     x = data['x']
     y = data['y']
@@ -96,13 +136,21 @@ def handle_place_ship(data):
 
 
 
-# Evento para fazer movimento no jogo
+
 @socketio.on('make_move')
 def handle_make_move(data):
     try:
         player_id = data['player_id']
+        room_id = data['room_id']  # Recebe o room_id
         x = data['x']
         y = data['y']
+        
+        # Certifique-se de que a sala existe antes de tentar fazer o movimento
+        if room_id not in games:
+            emit('error', {'message': 'Sala não encontrada!'})
+            return
+        
+        game = games[room_id]  # Acessa o jogo pela sala
         result = game.make_move(player_id, x, y)
 
         emit('move_result', {
@@ -113,34 +161,39 @@ def handle_make_move(data):
             'x': result.get('x'),
             'y': result.get('y'),
             'color': result.get('color')
-        }, broadcast=True)
+        }, room=room_id, broadcast=True)
 
         # Se houver um vencedor, finalize o jogo
         if 'winner' in result:
-            emit('game_over', {'winner': result['winner']}, broadcast=True)
+            emit('game_over', {'winner': result['winner']}, room=room_id, broadcast=True)
 
     except Exception as e:
         emit('error', {'message': f"Erro ao fazer o movimento: {str(e)}"})
+
         
     
 
-
-
-
-
-# Evento para remover jogador
 @socketio.on('leave_game')
 def handle_leave_game(data):
     try:
         player_id = data['player_id']
+        room_id = data['room_id']  # Recebe o room_id
+        
+        # Certifique-se de que a sala existe antes de tentar remover o jogador
+        if room_id not in games:
+            emit('error', {'message': 'Sala não encontrada!'})
+            return
+        
+        game = games[room_id]  # Acessa o jogo pela sala
         message = game.remove_player(player_id)
-        emit('player_left', {'message': message}, broadcast=True)
+        emit('player_left', {'message': message}, room=room_id, broadcast=True)
 
         # Notifica que o jogo foi reiniciado caso o jogador tenha saído
-        emit('game_reset', {'message': 'O jogo foi reiniciado!'}, broadcast=True)
+        emit('game_reset', {'message': 'O jogo foi reiniciado!'}, room=room_id, broadcast=True)
 
     except Exception as e:
         emit('error', {'message': f"Erro ao remover jogador: {str(e)}"})
+
 
 # Rodando o servidor
 if __name__ == '__main__':

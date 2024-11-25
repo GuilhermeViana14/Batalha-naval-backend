@@ -36,6 +36,7 @@ class Game:
         print(f"Jogador {new_player_id + 1} adicionado com ID: {new_player_id}")
         return f"Jogador {new_player_id + 1} adicionado", new_player_id
 
+
     def start_game(self):
         if len(self.players) == 2:
             self.game_started = True
@@ -246,3 +247,5 @@ class Game:
             return f"Jogador {player_id} saiu da partida e o jogo foi reiniciado."
         else:
             return f"Jogador {player_id} não está na partida."
+        
+        
