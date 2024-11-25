@@ -1,5 +1,5 @@
 from typing import Self
-from flask import Flask, jsonify
+from flask import Flask, jsonify, request
 from flask_socketio import SocketIO, emit
 from flask_cors import CORS
 from game_model import Game
@@ -10,7 +10,7 @@ app = Flask(__name__)
 CORS(app, origins="*", supports_credentials=True)
 
 # Inicializando o SocketIO
-socketio = SocketIO(app, cors_allowed_origins='*',  async_mode='gevent')
+socketio = SocketIO(app, cors_allowed_origins='*',  async_mode='threading')
 
 # Instância do jogo
 game = Game()
@@ -28,17 +28,21 @@ def handle_disconnect():
     emit('connection_status', {'message': 'Desconectado'})
 
 
-# Evento para adicionar jogador
+
 @socketio.on('add_player')
 def handle_add_player(data=None):
     try:
         message = game.add_player()
-        emit('player_added', {'message': message}, broadcast=True)
+        emit('player_added', {'message': message},  room=request.sid)
 
         # Se o jogo tiver dois jogadores, inicie o jogo
         if len(game.players) == 2:
             game.start_game()
             emit('game_started', {'message': 'O jogo começou!'}, broadcast=True)
+
+    except Exception as e:
+        emit('error', {'message': f"Erro ao adicionar jogador: {str(e)}"})
+
 
     except Exception as e:
         emit('error', {'message': f"Erro ao adicionar jogador: {str(e)}"})
@@ -141,7 +145,8 @@ def handle_leave_game(data):
 # Rodando o servidor
 if __name__ == '__main__':
 
+    # Define a porta padrão como 5000
     port = int(os.environ.get('PORT', 5000))
     
-    # Roda o servidor Flask com o SocketIO
-    socketio.run(app, host='0.0.0.0', port=port, ping_timeout=60)
+    # Roda o servidor Flask com o SocketIO no localhost
+    socketio.run(app, host='127.0.0.1', port=port)
