@@ -1,3 +1,4 @@
+from typing import Self
 from flask import Flask, jsonify
 from flask_socketio import SocketIO, emit
 from flask_cors import CORS
@@ -9,7 +10,7 @@ app = Flask(__name__)
 CORS(app, origins="*", supports_credentials=True)
 
 # Inicializando o SocketIO
-socketio = SocketIO(app, cors_allowed_origins='*', async_mode='gevent')
+socketio = SocketIO(app, cors_allowed_origins='*',  async_mode='gevent')
 
 # Instância do jogo
 game = Game()
@@ -25,6 +26,7 @@ def handle_connect():
 def handle_disconnect():
     print("Cliente desconectado")
     emit('connection_status', {'message': 'Desconectado'})
+
 
 # Evento para adicionar jogador
 @socketio.on('add_player')
@@ -49,6 +51,46 @@ def handle_start_game():
         emit('game_started', {'message': message}, broadcast=True)
     except Exception as e:
         emit('error', {'message': f"Erro ao iniciar o jogo: {str(e)}"})
+
+
+@socketio.on('place_ship')
+def handle_place_ship(data):
+    player_id = data['player_id']
+    x = data['x']
+    y = data['y']
+    orientation = data['orientation']
+    ship_name = data['shipName']
+    
+    # Verifica se o jogador está no jogo
+    player_index = None
+    for index, player in enumerate(game.players):
+        if player == player_id:
+            player_index = index
+            break
+
+    if player_index is None:
+        # Emite a resposta de erro
+        emit('place_ship_response', {'message': 'Jogador não encontrado', 'success': False})
+        return
+
+    # Coloca o navio
+    result = game.place_ship(player_index, game.ships[ship_name]['size'], ship_name, x, y, orientation)
+
+    # Se a colocação foi bem-sucedida
+    if 'sucesso' in result:
+        updated_board = game.boards[player_index]['board']  # Acessa o tabuleiro do jogador
+
+        # Emite a resposta com o resultado e o tabuleiro atualizado
+        emit('place_ship_response', {
+            'message': result, 
+            'success': True, 
+            'updated_board': updated_board
+        })
+    else:
+        # Caso contrário, emite um erro
+        emit('place_ship_response', {'message': result, 'success': False})
+
+
 
 # Evento para fazer movimento no jogo
 @socketio.on('make_move')
@@ -75,6 +117,12 @@ def handle_make_move(data):
 
     except Exception as e:
         emit('error', {'message': f"Erro ao fazer o movimento: {str(e)}"})
+        
+    
+
+
+
+
 
 # Evento para remover jogador
 @socketio.on('leave_game')
@@ -92,7 +140,7 @@ def handle_leave_game(data):
 
 # Rodando o servidor
 if __name__ == '__main__':
-    # Pega a porta da variável de ambiente do Railway ou usa 5000 como fallback
+
     port = int(os.environ.get('PORT', 5000))
     
     # Roda o servidor Flask com o SocketIO
