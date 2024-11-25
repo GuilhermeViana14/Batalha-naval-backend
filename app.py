@@ -10,7 +10,7 @@ app = Flask(__name__)
 CORS(app, origins="*", supports_credentials=True)
 
 # Inicializando o SocketIO
-socketio = SocketIO(app, cors_allowed_origins='*',  async_mode='gevent')
+socketio = SocketIO(app, cors_allowed_origins='*',  async_mode='threading')
 
 # Instância do jogo
 game = Game()
@@ -124,10 +124,6 @@ def handle_make_move(data):
         
     
 
-
-
-
-
 # Evento para remover jogador
 @socketio.on('leave_game')
 def handle_leave_game(data):
@@ -142,10 +138,11 @@ def handle_leave_game(data):
     except Exception as e:
         emit('error', {'message': f"Erro ao remover jogador: {str(e)}"})
 
-# Rodando o servidor
+ # Rodando o servidor
 if __name__ == '__main__':
 
+    # Define a porta padrão como 5000
     port = int(os.environ.get('PORT', 5000))
     
-    # Roda o servidor Flask com o SocketIO
-    socketio.run(app, host='0.0.0.0', port=port, ping_timeout=60)
+    # Roda o servidor Flask com o SocketIO no localhost
+    socketio.run(app, host='127.0.0.1', port=port)
