@@ -31,15 +31,16 @@ def handle_disconnect():
 def handle_add_player(data=None):
     try:
         room_id = None
-        # Busca por uma sala disponível
+        
+        # Busca por uma sala existente com espaço
         for room in games:
             if len(games[room].players) < 2:
                 room_id = room
                 print(f"Jogador encontrado em sala existente: {room_id}")
                 break
         
+        # Cria uma nova sala apenas se nenhuma sala com espaço for encontrada
         if room_id is None:
-            # Se não encontrou uma sala, cria uma nova
             room_id = str(uuid.uuid4())  # Gera um ID único para a sala
             games[room_id] = Game()  # Cria uma nova instância do jogo para a sala
             print(f"Criando nova sala com ID: {room_id}")
@@ -72,6 +73,7 @@ def handle_add_player(data=None):
     except Exception as e:
         print(f"Erro ao adicionar jogador: {str(e)}")
         emit('error', {'message': f"Erro ao adicionar jogador: {str(e)}"})
+
 
 
 @socketio.on('start_game')
