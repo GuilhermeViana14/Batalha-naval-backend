@@ -226,13 +226,13 @@ class Game:
             'submarino': {'size': 1, 'count': 2, 'shape': [[1]]},
             'barco': {'size': 2, 'count': 1, 'shape': [[1, 1]]},
             'navio': {'size': 3, 'count': 1, 'shape': [[1, 1, 1]]},
-            'porta_aviao': {
+             'porta_aviao': {
                 'size': 3,
                 'count': 1,
                 'shape': [
+                    [1, 1, 1],
                     [0, 1, 0],
-                    [0, 1, 0],
-                    [1, 1, 1]
+                    [0, 1, 0]
                 ]
             }
         }
