@@ -16,9 +16,9 @@ class Game:
                 'size': 3,
                 'count': 1,
                 'shape': [
+                    [1, 1, 1],
                     [0, 1, 0],
-                    [0, 1, 0],
-                    [1, 1, 1]
+                    [0, 1, 0]
                 ]
             }
         }
@@ -72,6 +72,7 @@ class Game:
 
         board = self.boards[player_index]['board']
 
+        # Verifica se o navio pode ser colocado
         if self.can_place_ship(x, y, shape, board):
             rows = len(shape)
             cols = len(shape[0])
@@ -85,21 +86,23 @@ class Game:
             return f"Não é possível colocar o {ship_name} nas coordenadas ({x}, {y})."
 
 
-
     def can_place_ship(self, x, y, shape, board):
         rows = len(shape)
         cols = len(shape[0])
 
         for i in range(rows):
             for j in range(cols):
-                if shape[i][j] == 1:  # Parte do navio
+                if shape[i][j] == 1:  # Verifica apenas as partes do navio (onde shape[i][j] é 1)
+                    # Verifica se a posição está fora dos limites ou já ocupada
                     if (
                         x + i >= len(board) or  # Fora do limite vertical
                         y + j >= len(board[0]) or  # Fora do limite horizontal
-                        board[x + i][y + j] != 0  # Espaço já ocupado
+                        board[x + i][y + j] != 0  # Espaço já ocupado por outro navio
                     ):
                         return False
         return True
+
+
 
 
     def are_all_ships_placed(self, player_index):
